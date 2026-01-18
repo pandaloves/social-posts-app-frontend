@@ -4,13 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Post from '../components/Post';
 import PostForm from '../components/PostForm';
 import UserInfo from '../components/UserInfo';
-import { 
-  fetchUserPosts, 
-  fetchUserProfile, 
-  createPost, 
-  updatePost, 
-  deletePost
-} from '../services/api';
+import { fetchUserPosts, fetchUserProfile, createPost, updatePost, deletePost } from '../services/api';
 
 export default function Wall({ isOwnWall = false }) {
   const { userId } = useParams();
@@ -21,7 +15,7 @@ export default function Wall({ isOwnWall = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const currentWallUserId = isOwnWall ? loggedInUser?.id : userId;
+  const currentWallUserId = isOwnWall ? loggedInUser?.id : Number(userId);
   const isViewingOwnWall = isOwnWall || currentWallUserId === loggedInUser?.id;
 
   useEffect(() => {
@@ -37,48 +31,29 @@ export default function Wall({ isOwnWall = false }) {
       setWallUser(userData);
 
       const postsData = await fetchUserPosts(currentWallUserId);
-      const sortedPosts = postsData.posts?.sort((a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-      ) || [];
+      const sortedPosts = postsData.posts?.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) || [];
       setPosts(sortedPosts);
     } catch (err) {
       setError('Failed to load wall data. Please try again.');
-      console.error('Error loading wall:', err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreatePost = async (content) => {
-    try {
-      const newPost = await createPost({ content });
-      setPosts([newPost, ...posts]);
-    } catch (err) {
-      console.error('Error creating post:', err);
-      throw err;
-    }
+    const newPost = await createPost({ content });
+    setPosts([newPost, ...posts]);
   };
 
   const handleUpdatePost = async (postId, content) => {
-    try {
-      await updatePost(postId, { content });
-      setPosts(posts.map(post =>
-        post.id === postId ? { ...post, content, updatedAt: new Date().toISOString() } : post
-      ));
-    } catch (err) {
-      console.error('Error updating post:', err);
-      throw err;
-    }
+    await updatePost(postId, { content });
+    setPosts(posts.map(post => post.id === postId ? { ...post, content } : post));
   };
 
   const handleDeletePost = async (postId) => {
-    try {
-      await deletePost(postId);
-      setPosts(posts.filter(post => post.id !== postId));
-    } catch (err) {
-      console.error('Error deleting post:', err);
-      throw err;
-    }
+    await deletePost(postId);
+    setPosts(posts.filter(post => post.id !== postId));
   };
 
   if (loading) return <div className="text-center py-12">Loading wall...</div>;
@@ -87,27 +62,20 @@ export default function Wall({ isOwnWall = false }) {
   return (
     <div className="max-w-6xl mx-auto">
       {wallUser && (
-        <div className="mb-8">
-          <UserInfo user={wallUser} isOwnProfile={isViewingOwnWall} postCount={posts.length} />
-        </div>
+        <UserInfo user={wallUser} isOwnProfile={isViewingOwnWall} postCount={posts.length} />
       )}
 
-      {isViewingOwnWall && (
-        <div className="mb-8">
-          <PostForm onSubmit={handleCreatePost} />
-        </div>
-      )}
+      {isViewingOwnWall && <PostForm onSubmit={handleCreatePost} />}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="border-b border-gray-200 px-6 py-4">
           <h2 className="text-xl font-semibold text-gray-900">
             {isViewingOwnWall ? 'Your Posts' : `${wallUser?.username}'s Posts`}
             <span className="ml-2 text-sm font-normal text-gray-500">
-              ({posts.length} {posts.length === 1 ? 'post' : 'posts'})
+              ({posts.length})
             </span>
           </h2>
         </div>
-
         <div className="p-6">
           {posts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">

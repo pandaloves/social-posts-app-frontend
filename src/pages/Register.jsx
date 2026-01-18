@@ -13,6 +13,7 @@ export default function Register() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -85,7 +86,6 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         bio: formData.bio,
-        role: 'USER'
       };
 
       const result = await register(userData);
@@ -202,15 +202,32 @@ export default function Register() {
           </div>
 
           {/* Confirm Password */}
-          <input
-            type={showPassword ? 'text' : 'password'}
-            name="confirmPassword"
-            placeholder="Confirm password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border rounded-lg"
-            required
-          />
+       <div className="relative">
+      <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <input
+      type={showConfirmPassword ? 'text' : 'password'}
+      name="confirmPassword"
+      placeholder="Confirm password"
+      value={formData.confirmPassword}
+      onChange={handleChange}
+      className="w-full pl-10 pr-10 px-4 py-3 border rounded-lg"
+      required
+      />
+     <button
+      type="button"
+      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+      >
+      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+    </button>
+</div>
+
+{/* Display error immediately if passwords do not match */}
+{errors.confirmPassword && (
+  <div className="text-red-600 text-sm mt-1">
+    {errors.confirmPassword}
+  </div>
+)}
 
           <button
             type="submit"
