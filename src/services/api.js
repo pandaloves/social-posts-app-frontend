@@ -6,7 +6,6 @@ let mockUsers = [
     id: 1,
     username: 'Mia',
     email: 'mia@gmail.com',
-    role: 'USER',
     bio: 'Hej! Jag är Mia.',
     password: 'mia123',
     createdAt: new Date().toISOString()
@@ -15,7 +14,6 @@ let mockUsers = [
     id: 2,
     username: 'Test',
     email: 'test@gmail.com',
-    role: 'USER',
     bio: 'I am a test user',
     password: 'test123',
     createdAt: new Date().toISOString()
