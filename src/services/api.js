@@ -17,6 +17,54 @@ let mockUsers = [
     bio: 'I am a test user',
     password: 'test123',
     createdAt: new Date().toISOString()
+  },
+  {
+    id: 3,
+    username: 'Mary',
+    email: 'mary@gmail.com',
+    bio: 'Hej! Jag är Mary.',
+    password: 'mary123',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 4,
+    username: 'Bob',
+    email: 'bob@gmail.com',
+    bio: 'I am Bob.',
+    password: 'bob123',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 5,
+    username: 'John',
+    email: 'john@gmail.com',
+    bio: 'Hej! Jag är John.',
+    password: 'john123',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 6,
+    username: 'Willliam',
+    email: 'william@gmail.com',
+    bio: 'Hej!',
+    password: 'william123',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 7,
+    username: 'Eva',
+    email: 'eva@gmail.com',
+    bio: 'Hej! Jag är Eva.',
+    password: 'eva123',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 8,
+    username: 'Neo',
+    email: 'neo@gmail.com',
+    bio: 'I am Neo',
+    password: 'neo123',
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -39,10 +87,89 @@ let mockPosts = [
     id: 3,
     content: 'Spring Boot + React + Tailwind = ❤️',
     createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    author: mockUsers[0],
+    author: mockUsers[4],
+    commentCount: 0
+  },
+  {
+    id: 4,
+    content: 'Spring Boot + React + Tailwind = ❤️',
+    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+    author: mockUsers[6],
     commentCount: 0
   }
 ];
+
+// ==================== COMMENTS ====================
+let mockComments = [
+  {
+    id: 1,
+    postId: 1,
+    content: 'Nice post!',
+    createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+    author: mockUsers[1]
+  },
+  {
+    id: 2,
+    postId: 1,
+    content: 'Good morning ☕',
+    createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+    author: mockUsers[0]
+  }
+];
+
+// ==================== FRIENDSHIPS ====================
+let mockFriendships = [
+  {
+    id: 1,
+    requesterId: 1,
+    receiverId: 2,
+    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
+    createdAt: new Date().toISOString()
+  },
+    {
+    id: 2,
+    requesterId: 1,
+    receiverId: 3,
+    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
+    createdAt: new Date().toISOString()
+  },
+    {
+    id: 3,
+    requesterId: 1,
+    receiverId: 4,
+    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
+    createdAt: new Date().toISOString()
+  },
+    {
+    id: 4,
+    requesterId: 1,
+    receiverId: 5,
+    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
+    createdAt: new Date().toISOString()
+  },
+    {
+    id: 5,
+    requesterId: 1,
+    receiverId: 6,
+    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
+    createdAt: new Date().toISOString()
+  },
+    {
+    id: 6,
+    requesterId: 1,
+    receiverId: 7,
+    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
+    createdAt: new Date().toISOString()
+  },
+    {
+    id: 7,
+    requesterId: 1,
+    receiverId: 8,
+    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
+    createdAt: new Date().toISOString()
+  }
+];
+
 
 // Helper to simulate network delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -106,11 +233,23 @@ export const userService = {
     return user ? sanitizeUser(user) : null;
   },
 
-  getUserWithPosts: async (id) => {
+  getUserWithPosts: async (id, page = 0, size = 5) => {
     await delay(500);
     const user = mockUsers.find(u => u.id === id);
     if (!user) return null;
-    const userPosts = mockPosts.filter(p => p.author.id === id);
+    const allPosts = mockPosts.filter(p => p.author.id === id);
+
+const start = page * size;
+const content = allPosts.slice(start, start + size);
+
+return {
+  ...sanitizeUser(user),
+  posts: content,
+  totalElements: allPosts.length,
+  totalPages: Math.ceil(allPosts.length / size),
+  page
+};
+
     return {
       ...sanitizeUser(user),
       posts: userPosts
@@ -186,11 +325,118 @@ export const postService = {
   }
 };
 
+export const updateUserProfile = async (userId, updatedData) => {
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  const userIndex = mockUsers.findIndex(u => u.id === userId);
+  if (userIndex === -1) throw new Error('User not found');
+
+  mockUsers[userIndex] = {
+    ...mockUsers[userIndex],
+    ...updatedData
+  };
+
+  return sanitizeUser(mockUsers[userIndex]);
+};
+
+// ==================== COMMENT SERVICE ====================
+export const commentService = {
+
+  getCommentsByPost: async (postId) => {
+    await delay(300);
+
+    const comments = mockComments
+      .filter(c => c.postId === postId)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // oldest first
+
+    return comments;
+  },
+
+  createComment: async (postId, content) => {
+    await delay(300);
+
+    const newComment = {
+      id: mockComments.length + 1,
+      postId,
+      content,
+      createdAt: new Date().toISOString(),
+      author: mockUsers[0] 
+    };
+
+    mockComments.push(newComment);
+
+    // Update comment count
+    const post = mockPosts.find(p => p.id === postId);
+    if (post) post.commentCount++;
+
+    return newComment;
+  }
+};
+
+// ==================== FRIENDSHIP SERVICE ====================
+export const friendshipService = {
+
+  sendFriendRequest: async (receiverId) => {
+    await delay(300);
+
+    const newRequest = {
+      id: mockFriendships.length + 1,
+      requesterId: mockUsers[0].id,
+      receiverId,
+      status: 'PENDING',
+      createdAt: new Date().toISOString()
+    };
+
+    mockFriendships.push(newRequest);
+    return newRequest;
+  },
+
+  getIncomingRequests: async (userId) => {
+    await delay(300);
+
+    return mockFriendships
+      .filter(f => f.receiverId === userId && f.status === 'PENDING')
+      .map(req => ({
+        ...req,
+        requester: sanitizeUser(
+          mockUsers.find(u => u.id === req.requesterId)
+        )
+      }));
+  },
+
+  respondToRequest: async (requestId, status) => {
+    await delay(300);
+
+    const request = mockFriendships.find(f => f.id === requestId);
+    if (request) request.status = status;
+
+    return request;
+  },
+
+  getFriends: async (userId) => {
+    await delay(300);
+
+    const accepted = mockFriendships.filter(f =>
+      f.status === 'ACCEPTED' &&
+      (f.requesterId === userId || f.receiverId === userId)
+    );
+
+    return accepted.map(f => {
+      const friendId =
+        f.requesterId === userId ? f.receiverId : f.requesterId;
+
+      return sanitizeUser(mockUsers.find(u => u.id === friendId));
+    });
+  }
+};
+
+
 // ==================== EXPORTS ====================
 export const login = (credentials) => authService.login(credentials);
 export const register = (userData) => authService.register(userData);
 export const fetchFeedPosts = () => postService.getPosts();
-export const fetchUserPosts = (userId) => userService.getUserWithPosts(userId);
+export const fetchUserPosts = (userId, page, size) =>
+  userService.getUserWithPosts(userId, page, size);
 export const createPost = (postData) => postService.createPost(postData);
 export const updatePost = (postId, postData) => postService.updatePost(postId, postData);
 export const deletePost = (postId) => postService.deletePost(postId);
@@ -201,3 +447,20 @@ export const searchUsers = (query) =>
   );
 export const getUsers = () => userService.getUsers();
 export const getUserWithPosts = (userId) => userService.getUserWithPosts(userId);
+export const fetchComments = (postId) =>
+  commentService.getCommentsByPost(postId);
+
+export const createComment = (postId, content) =>
+  commentService.createComment(postId, content);
+export const sendFriendRequest = (userId) =>
+  friendshipService.sendFriendRequest(userId);
+
+export const fetchFriendRequests = (userId) =>
+  friendshipService.getIncomingRequests(userId);
+
+export const respondFriendRequest = (requestId, status) =>
+  friendshipService.respondToRequest(requestId, status);
+
+export const fetchFriends = (userId) =>
+  friendshipService.getFriends(userId);
+
