@@ -213,21 +213,21 @@ export default function Register() {
       className="w-full pl-10 pr-10 px-4 py-3 border rounded-lg"
       required
       />
-     <button
+      <button
       type="button"
       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
       >
       {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-    </button>
-</div>
+      </button>
+    </div>
 
-{/* Display error immediately if passwords do not match */}
-{errors.confirmPassword && (
-  <div className="text-red-600 text-sm mt-1">
-    {errors.confirmPassword}
-  </div>
-)}
+      {/* Display error immediately if passwords do not match */}
+      {errors.confirmPassword && (
+        <div className="text-red-600 text-sm mt-1">
+      {errors.confirmPassword}
+     </div>
+    )}
 
           <button
             type="submit"
