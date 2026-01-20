@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Post from '../components/Post';
-import { FaRss, FaUsers, FaFilter } from 'react-icons/fa';
-import { fetchFeedPosts, updatePost, deletePost } from '../services/api';
+import { FaRss, FaUsers } from 'react-icons/fa';
+import { updatePost, deletePost, fetchPosts } from '../services/api';
 
 export default function Feed() {
   const { user } = useAuth();
@@ -15,23 +15,21 @@ export default function Feed() {
   }, []);
 
   const loadPosts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const data = await fetchFeedPosts();
-      const postsArray = data.content;
+    const data = await fetchPosts({
+      sort: 'createdAt,desc'
+    });
 
-      // Sort by latest
-      postsArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setPosts(postsArray);
-    } catch (err) {
-      setError('Failed to load posts. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setPosts(data.content);
+  } catch (err) {
+    setError('Failed to load posts');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleUpdate = async (postId, content) => {
     try {
