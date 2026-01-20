@@ -4,9 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import Post from '../components/Post';
 import PostForm from '../components/PostForm';
 import UserInfo from '../components/UserInfo';
-import EditProfileDialog from '../components/EditProfileModal';
+import EditProfileDialog from '../components/EditProfileDialog';
 import { updateUserProfile } from '../services/api';
-import { fetchUserPosts, fetchUserProfile, createPost, updatePost, deletePost } from '../services/api';
+import { fetchPosts, fetchUserProfile, createPost, updatePost, deletePost } from '../services/api';
 
 export default function Wall({ isOwnWall = false }) {
   const { userId } = useParams();
@@ -21,43 +21,47 @@ export default function Wall({ isOwnWall = false }) {
   const [showEditProfile, setShowEditProfile] = useState(false);
 
   const currentWallUserId = isOwnWall ? loggedInUser?.id : Number(userId);
-  const isViewingOwnWall = isOwnWall || currentWallUserId === loggedInUser?.id;
+  const isViewingOwnWall = currentWallUserId === loggedInUser?.id;
 
-  const loadWallData = useCallback(async (resetPage = false) => {
+  const PAGE_SIZE = 5;
+
+  const loadWallData = useCallback(async (reset = false) => {
     if (!currentWallUserId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
-      const currentPage = resetPage ? 0 : page;
-      
-      // Load user profile
+
+      const currentPage = reset ? 0 : page;
+
+      // Load profile
       const userData = await fetchUserProfile(currentWallUserId);
       setWallUser(userData);
-      
-      // Load posts with current page
-      const postsData = await fetchUserPosts(currentWallUserId, currentPage, 5);
-      
-      // Handle API response
-      const postsArray = postsData.posts || postsData.content || [];
-      const totalPages = postsData.totalPages || 
-                        (postsData.totalElements ? Math.ceil(postsData.totalElements / 5) : 1);
-      
-      setPosts(prev => currentPage === 0 
-        ? postsArray 
-        : [...prev, ...postsArray]
+
+      // Load posts using unified /posts endpoint
+      const postsData = await fetchPosts({
+        userId: currentWallUserId,
+        page: currentPage,
+        size: PAGE_SIZE,
+        sort: 'createdAt,desc'
+      });
+
+      const newPosts = postsData.content;
+      const totalPages = postsData.totalPages;
+
+      setPosts(prev =>
+        currentPage === 0 ? newPosts : [...prev, ...newPosts]
       );
-      
+
       setHasMore(currentPage < totalPages - 1);
-      
-      if (resetPage && currentPage !== page) {
-        setPage(currentPage);
+
+      if (reset) {
+        setPage(0);
       }
-      
+
     } catch (err) {
-      setError('Failed to load wall data. Please try again.');
-      console.error('Wall load error:', err);
+      console.error(err);
+      setError('Failed to load wall data');
     } finally {
       setLoading(false);
     }
@@ -68,29 +72,32 @@ export default function Wall({ isOwnWall = false }) {
     setPage(0);
     setHasMore(true);
     setWallUser(null);
-    
+
     loadWallData(true);
   }, [currentWallUserId]);
 
-  const handleLoadMore = useCallback(async () => {
+  const handleLoadMore = async () => {
     if (!hasMore || loading) return;
-    
+
     const nextPage = page + 1;
     setPage(nextPage);
-    
+
     try {
-      const postsData = await fetchUserPosts(currentWallUserId, nextPage, 5);
-      const postsArray = postsData.posts || postsData.content || [];
-      const totalPages = postsData.totalPages || 
-                        (postsData.totalElements ? Math.ceil(postsData.totalElements / 5) : 1);
-      
-      setPosts(prev => [...prev, ...postsArray]);
-      setHasMore(nextPage < totalPages - 1);
+      const postsData = await fetchPosts({
+        userId: currentWallUserId,
+        page: nextPage,
+        size: PAGE_SIZE,
+        sort: 'createdAt,desc'
+      });
+
+      setPosts(prev => [...prev, ...postsData.content]);
+      setHasMore(nextPage < postsData.totalPages - 1);
+
     } catch (err) {
-      console.error('Load more error:', err);
+      console.error(err);
       setError('Failed to load more posts');
     }
-  }, [currentWallUserId, page, hasMore, loading]);
+  };
 
   const handleProfileSave = async (updatedData) => {
     try {
@@ -106,39 +113,45 @@ export default function Wall({ isOwnWall = false }) {
   const handleCreatePost = async (content) => {
     try {
       const newPost = await createPost({ content });
+
+      // prepend new post
       setPosts(prev => [newPost, ...prev]);
     } catch (err) {
+      console.error(err);
       setError('Failed to create post');
-      console.error('Create post error:', err);
     }
   };
 
   const handleUpdatePost = async (postId, content) => {
     try {
       await updatePost(postId, { content });
-      setPosts(prev => prev.map(post => 
-        post.id === postId ? { ...post, content } : post
-      ));
+
+      setPosts(prev =>
+        prev.map(post =>
+          post.id === postId ? { ...post, content } : post
+        )
+      );
     } catch (err) {
+      console.error(err);
       setError('Failed to update post');
-      console.error('Update post error:', err);
     }
   };
 
   const handleDeletePost = async (postId) => {
     try {
       await deletePost(postId);
+
       setPosts(prev => prev.filter(post => post.id !== postId));
     } catch (err) {
+      console.error(err);
       setError('Failed to delete post');
-      console.error('Delete post error:', err);
     }
   };
 
   if (loading && posts.length === 0) {
     return <div className="text-center py-12">Loading wall...</div>;
   }
-  
+
   if (error && posts.length === 0) {
     return <div className="text-center py-12 text-red-500">{error}</div>;
   }
@@ -146,11 +159,11 @@ export default function Wall({ isOwnWall = false }) {
   return (
     <div className="max-w-6xl mx-auto">
       {wallUser && (
-        <UserInfo 
-          user={wallUser} 
-          isOwnProfile={isViewingOwnWall} 
-          postCount={posts.length} 
-          onEditProfile={isViewingOwnWall ? () => setShowEditProfile(true) : null} // Pass the function here
+        <UserInfo
+          user={wallUser}
+          isOwnProfile={isViewingOwnWall}
+          postCount={posts.length}
+          onEditProfile={isViewingOwnWall ? () => setShowEditProfile(true) : null}
         />
       )}
 
@@ -165,10 +178,13 @@ export default function Wall({ isOwnWall = false }) {
             </span>
           </h2>
         </div>
+
         <div className="p-6">
           {posts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              {isViewingOwnWall ? "You haven't posted anything yet." : 'No posts yet.'}
+              {isViewingOwnWall
+                ? "You haven't posted anything yet."
+                : 'No posts yet.'}
             </div>
           ) : (
             <div className="space-y-6">

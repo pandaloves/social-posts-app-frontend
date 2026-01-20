@@ -261,7 +261,13 @@ return {
 export const postService = {
   getPosts: async (params = {}) => {
     await delay(400);
+
     let posts = [...mockPosts];
+
+    // Filter by userId (Wall behavior)
+    if (params.userId) {
+      posts = posts.filter(p => p.author.id === Number(params.userId));
+    }
 
     // Sorting
     if (params.sort) {
@@ -276,54 +282,56 @@ export const postService = {
     // Pagination
     const page = params.page ?? 0;
     const size = params.size ?? 10;
+
     const start = page * size;
-    const end = start + size;
-    const content = posts.slice(start, end);
+    const content = posts.slice(start, start + size);
 
     const totalElements = posts.length;
     const totalPages = Math.ceil(totalElements / size);
 
     return {
       content,
-      pageable: { pageNumber: page, pageSize: size, offset: start, paged: true, unpaged: false },
-      last: page === totalPages - 1,
-      first: page === 0,
-      totalPages,
       totalElements,
-      size,
+      totalPages,
       number: page,
-      numberOfElements: content.length,
-      empty: content.length === 0
+      size
     };
   },
 
   createPost: async (postData) => {
     await delay(500);
+
     const newPost = {
       id: mockPosts.length + 1,
       content: postData.content,
-      author: mockUsers[0], // Mock logged-in user
+      author: mockUsers[0], // mock logged in user
       createdAt: new Date().toISOString(),
       commentCount: 0
     };
+
     mockPosts.unshift(newPost);
     return newPost;
   },
 
   updatePost: async (postId, postData) => {
     await delay(400);
+
     const post = mockPosts.find(p => p.id === postId);
     if (post) post.content = postData.content;
+
     return post;
   },
 
   deletePost: async (postId) => {
     await delay(300);
+
     const index = mockPosts.findIndex(p => p.id === postId);
     if (index !== -1) mockPosts.splice(index, 1);
+
     return Promise.resolve();
   }
 };
+
 
 export const updateUserProfile = async (userId, updatedData) => {
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -434,7 +442,7 @@ export const friendshipService = {
 // ==================== EXPORTS ====================
 export const login = (credentials) => authService.login(credentials);
 export const register = (userData) => authService.register(userData);
-export const fetchFeedPosts = () => postService.getPosts();
+export const fetchPosts = (params) => postService.getPosts(params);
 export const fetchUserPosts = (userId, page, size) =>
   userService.getUserWithPosts(userId, page, size);
 export const createPost = (postData) => postService.createPost(postData);
