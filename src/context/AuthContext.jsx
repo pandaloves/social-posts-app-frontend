@@ -1,6 +1,8 @@
-// src/context/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService, userService } from '../services/api';
+import { authService } from '../services/api';
+import { jwtDecode } from 'jwt-decode';
+
+
 
 const AuthContext = createContext(undefined);
 
@@ -17,57 +19,24 @@ export default function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user on mount
+    // Check for stored user and token on mount
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('user');
       const token = localStorage.getItem('token');
-      console.log("stored token", token);
       
       if (storedUser && token) {
         try {
           setUser(JSON.parse(storedUser));
         } catch (error) {
           console.error('Error parsing stored user:', error);
-          localStorage.removeItem('user');
-          localStorage.removeItem('token');
+          clearAuthData();
         }
       }
     }
     setIsLoading(false);
   }, []);
 
- const login = async (username, password) => {
-  try {
-    const response = await authService.login({ username, password });
-    console.log('AuthContext login response:', response);
-    
-    // Mock API returns { success, token, user } structure
-    if (response.success) {
-      if (response.token) {
-        localStorage.setItem('token', response.token);
-      }
-      if (response.refreshToken) {
-        localStorage.setItem('refreshToken', response.refreshToken);
-      }
-      if (response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-        setUser(response.user);
-      }
-      return { success: true };
-    }
-    
-    return { success: false, error: 'Login failed' };
-    
-  } catch (error) {
-    console.error('AuthContext login error:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Login failed. Try: mia/mia123' 
-    };
-  }
-};
-
-  const logout = () => {
+  const clearAuthData = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -75,18 +44,64 @@ export default function AuthProvider({ children }) {
   };
 
   const register = async (userData) => {
-    try {
-      const response = await authService.register(userData);
-      return { success: true, data: response };
-    } catch (error) {
-      console.error('Registration error:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Registration failed' 
+  try {
+    const response = await authService.register(userData);
+
+    // If backend returns a user object
+    if (response.id) {
+      const newUser = {
+        id: response.id,
+        username: response.username,
+        email: response.email,
       };
+      localStorage.setItem('user', JSON.stringify(newUser));
+      setUser(newUser);
+      return { success: true };
     }
+
+    return { success: false, error: 'Registration failed' };
+  } catch (error) {
+    console.error('Registration error:', error);
+    return { success: false, error: error.message || 'Registration failed' };
+  }
+};
+
+
+const login = async (username, password) => {
+  try {
+    const response = await authService.login({ username, password });
+
+    if (response.token) {
+      localStorage.setItem('token', response.token);
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
+
+      // Decode JWT
+     const decoded = jwtDecode(response.token);
+      // decoded.sub usually has the user id or username
+      const loggedInUser = { username: decoded.sub, id: decoded.sub };
+
+      localStorage.setItem('user', JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
+
+      return { success: true };
+    }
+
+    return { success: false, error: 'Invalid response from server' };
+  } catch (error) {
+    console.error('Login error:', error);
+    return { success: false, error: error.message || 'Login failed' };
+  }
+};
+
+
+
+  const logout = () => {
+    clearAuthData();
   };
 
+  
   return (
     <AuthContext.Provider
       value={{

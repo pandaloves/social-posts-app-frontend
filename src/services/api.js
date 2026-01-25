@@ -1,205 +1,225 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
-// Mock database
-let mockUsers = [
-  {
-    id: 1,
-    username: 'Mia',
-    email: 'mia@gmail.com',
-    role: 'USER',
-    bio: 'Hej! Jag är Mia.',
-    password: 'mia123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 2,
-    username: 'Test',
-    email: 'test@gmail.com',
-    role: 'USER',
-    bio: 'I am a test user',
-    password: 'test123',
-    createdAt: new Date().toISOString()
-  }
-];
-
-let mockPosts = [
-  {
-    id: 1,
-    content: 'Hej! God morgon! ☀️',
-    createdAt: new Date().toISOString(),
-    author: mockUsers[0],
-    commentCount: 2
-  },
-  {
-    id: 2,
-    content: 'Just finished connecting frontend with backend 🚀',
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    author: mockUsers[1],
-    commentCount: 1
-  },
-  {
-    id: 3,
-    content: 'Spring Boot + React + Tailwind = ❤️',
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    author: mockUsers[0],
-    commentCount: 0
-  }
-];
-
-// Helper to simulate network delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Remove password from user objects
-const sanitizeUser = (user) => {
-  const { password, ...safeUser } = user;
-  return safeUser;
+// Helper to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
 };
 
+// Helper for API calls
+const apiCall = async (endpoint, options = {}, requiresAuth = true) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  if (requiresAuth) {
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  console.log(`Making request to: ${API_BASE_URL}${endpoint}`);
+  console.log('Options:', { method: options.method || 'GET', body: options.body });
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+
+    console.log(`Response status: ${response.status} ${response.statusText}`);
+    
+    // Try to get response as text first to see what we're getting
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${responseText || response.statusText}`);
+    }
+
+    if (response.status === 204 || responseText === '') {
+      return null;
+    }
+
+    // Try to parse as JSON
+    try {
+      const jsonResponse = JSON.parse(responseText);
+      console.log('Parsed JSON response:', jsonResponse);
+      return jsonResponse;
+    } catch (jsonError) {
+      console.log('Response is not JSON, returning text:', responseText);
+      return responseText;
+    }
+
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
+  }
+};
+
+
 // ==================== AUTH SERVICE ====================
-export const authService = {
-  login: async (credentials) => {
-    await delay(600);
-    const user = mockUsers.find(u =>
-      u.username.toLowerCase() === credentials.username.toLowerCase() &&
-      u.password === credentials.password
-    );
-    if (user) {
-      return {
-        success: true,
-        token: `mock-jwt-${Date.now()}-${user.id}`,
-        refreshToken: `mock-refresh-${Date.now()}`,
-        user: sanitizeUser(user)
-      };
-    }
-    throw new Error('Invalid username or password. Try: mia/mia123 or test/test123');
-  },
+export const authService = {login: async (credentials) => {
+  return apiCall(
+    '/users/login',
+    {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    },
+    false
+  );
+},
 
-  register: async (userData) => {
-    await delay(800);
-    if (mockUsers.some(u => u.username.toLowerCase() === userData.username.toLowerCase())) {
-      throw new Error('Username already exists');
-    }
-    const newUser = {
-      id: mockUsers.length + 1,
-      ...userData,
-      createdAt: new Date().toISOString()
-    };
-    mockUsers.push(newUser);
-    return {
-      success: true,
-      token: `mock-jwt-${Date.now()}-${newUser.id}`,
-      user: sanitizeUser(newUser)
-    };
-  },
+ register: async (userData) => {
+  return apiCall(
+    '/users',
+    {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    },
+    false 
+  );
+},
 
-  logout: () => Promise.resolve()
+
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return Promise.resolve();
+  },
 };
 
 // ==================== USER SERVICE ====================
 export const userService = {
+  // GET /users - Hämtar alla användare
   getUsers: async () => {
-    await delay(400);
-    return mockUsers.map(sanitizeUser);
+    return apiCall('/users');
   },
 
+  // GET /users/{id} - Hämtar en specifik användare
   getUserById: async (id) => {
-    await delay(300);
-    const user = mockUsers.find(u => u.id === id);
-    return user ? sanitizeUser(user) : null;
+    return apiCall(`/users/${id}`);
   },
 
+  // GET /users/{id}/with-posts - Hämtar användare med posts
   getUserWithPosts: async (id) => {
-    await delay(500);
-    const user = mockUsers.find(u => u.id === id);
-    if (!user) return null;
-    const userPosts = mockPosts.filter(p => p.author.id === id);
-    return {
-      ...sanitizeUser(user),
-      posts: userPosts
-    };
-  }
+    return apiCall(`/users/${id}/with-posts`);
+  },
+
+  // POST /users - Skapar en ny användare
+  createUser: async (userData) => {
+    return apiCall('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  // PUT /users/{id} - Uppdaterar en befintlig användare
+  updateUser: async (id, userData) => {
+    return apiCall(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  // DELETE /users/{id} - Tar bort en användare
+  deleteUser: async (id) => {
+    return apiCall(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ==================== POST SERVICE ====================
 export const postService = {
+  // GET /posts - Hämtar posts med pagination och sortering
   getPosts: async (params = {}) => {
-    await delay(400);
-    let posts = [...mockPosts];
-
-    // Sorting
+    const queryParams = new URLSearchParams();
+    
+    if (params.userId) {
+      queryParams.append('userId', params.userId);
+    }
+    if (params.page !== undefined) {
+      queryParams.append('page', params.page);
+    }
+    if (params.size !== undefined) {
+      queryParams.append('size', params.size);
+    }
     if (params.sort) {
-      const [field, direction] = params.sort.split(',');
-      posts.sort((a, b) => {
-        const valueA = new Date(a[field]);
-        const valueB = new Date(b[field]);
-        return direction === 'desc' ? valueB - valueA : valueA - valueB;
-      });
+      queryParams.append('sort', params.sort);
     }
 
-    // Pagination
-    const page = params.page ?? 0;
-    const size = params.size ?? 10;
-    const start = page * size;
-    const end = start + size;
-    const content = posts.slice(start, end);
-
-    const totalElements = posts.length;
-    const totalPages = Math.ceil(totalElements / size);
-
-    return {
-      content,
-      pageable: { pageNumber: page, pageSize: size, offset: start, paged: true, unpaged: false },
-      last: page === totalPages - 1,
-      first: page === 0,
-      totalPages,
-      totalElements,
-      size,
-      number: page,
-      numberOfElements: content.length,
-      empty: content.length === 0
-    };
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/posts?${queryString}` : '/posts';
+    
+    return apiCall(endpoint);
   },
 
-  createPost: async (postData) => {
-    await delay(500);
-    const newPost = {
-      id: mockPosts.length + 1,
-      content: postData.content,
-      author: mockUsers[0], // Mock logged-in user
-      createdAt: new Date().toISOString(),
-      commentCount: 0
-    };
-    mockPosts.unshift(newPost);
-    return newPost;
+  // GET /posts/{id} - Hämtar en specifik post
+  getPostById: async (id) => {
+    return apiCall(`/posts/${id}`);
   },
 
+  // POST /posts - Skapar en ny post
+  createPostForUser: async (userId, postData) => {
+  return apiCall(`/users/${userId}/posts`, {
+    method: 'POST',
+    body: JSON.stringify(postData),
+  });
+},
+
+
+  // PUT /posts/{id} - Uppdaterar en befintlig post
   updatePost: async (postId, postData) => {
-    await delay(400);
-    const post = mockPosts.find(p => p.id === postId);
-    if (post) post.content = postData.content;
-    return post;
+    return apiCall(`/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(postData),
+    });
   },
 
+  // DELETE /posts/{id} - Tar bort en post
   deletePost: async (postId) => {
-    await delay(300);
-    const index = mockPosts.findIndex(p => p.id === postId);
-    if (index !== -1) mockPosts.splice(index, 1);
-    return Promise.resolve();
-  }
+    return apiCall(`/posts/${postId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
-// ==================== EXPORTS ====================
+// ==================== HELPER FUNCTIONS ====================
+
+// Authentication
 export const login = (credentials) => authService.login(credentials);
 export const register = (userData) => authService.register(userData);
-export const fetchFeedPosts = () => postService.getPosts();
-export const fetchUserPosts = (userId) => userService.getUserWithPosts(userId);
-export const createPost = (postData) => postService.createPost(postData);
+export const logout = () => authService.logout();
+
+// Posts
+export const fetchFeedPosts = (page = 0, size = 10) => 
+  postService.getPosts({ page, size, sort: 'createdAt,desc' });
+
+export const fetchUserPosts = (userId, page = 0, size = 10) => 
+  postService.getPosts({ userId, page, size, sort: 'createdAt,desc' });
+
+export const createPost = (userId, postData) => postService.createPostForUser(userId, postData);
 export const updatePost = (postId, postData) => postService.updatePost(postId, postData);
 export const deletePost = (postId) => postService.deletePost(postId);
+
+// Users
 export const fetchUserProfile = (userId) => userService.getUserById(userId);
-export const searchUsers = (query) =>
-  userService.getUsers().then(users =>
-    users.filter(user => user.username.toLowerCase().includes(query.toLowerCase()))
-  );
-export const getUsers = () => userService.getUsers();
 export const getUserWithPosts = (userId) => userService.getUserWithPosts(userId);
+export const getUsers = () => userService.getUsers();
+export const updateUserProfile = (userId, userData) => userService.updateUser(userId, userData);
+export const deleteUserAccount = (userId) => userService.deleteUser(userId);
+
+// Search
+export const searchUsers = async (query) => {
+  const users = await userService.getUsers();
+  return users.filter(user => 
+    user.username.toLowerCase().includes(query.toLowerCase()) ||
+    user.email.toLowerCase().includes(query.toLowerCase())
+  );
+};

@@ -6,9 +6,11 @@ import Wall from './pages/Wall';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import AuthProvider from './context/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <Router>
       <AuthProvider>
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -51,5 +53,6 @@ export default function App() {
         </div>
       </AuthProvider>
     </Router>
+    </ErrorBoundary>
   );
 }
