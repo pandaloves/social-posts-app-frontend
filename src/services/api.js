@@ -1,474 +1,225 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
-// Mock database
-let mockUsers = [
-  {
-    id: 1,
-    username: 'Mia',
-    email: 'mia@gmail.com',
-    bio: 'Hej! Jag är Mia.',
-    password: 'mia123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 2,
-    username: 'Test',
-    email: 'test@gmail.com',
-    bio: 'I am a test user',
-    password: 'test123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 3,
-    username: 'Mary',
-    email: 'mary@gmail.com',
-    bio: 'Hej! Jag är Mary.',
-    password: 'mary123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 4,
-    username: 'Bob',
-    email: 'bob@gmail.com',
-    bio: 'I am Bob.',
-    password: 'bob123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 5,
-    username: 'John',
-    email: 'john@gmail.com',
-    bio: 'Hej! Jag är John.',
-    password: 'john123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 6,
-    username: 'Willliam',
-    email: 'william@gmail.com',
-    bio: 'Hej!',
-    password: 'william123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 7,
-    username: 'Eva',
-    email: 'eva@gmail.com',
-    bio: 'Hej! Jag är Eva.',
-    password: 'eva123',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 8,
-    username: 'Neo',
-    email: 'neo@gmail.com',
-    bio: 'I am Neo',
-    password: 'neo123',
-    createdAt: new Date().toISOString()
-  }
-];
-
-let mockPosts = [
-  {
-    id: 1,
-    content: 'Hej! God morgon! ☀️',
-    createdAt: new Date().toISOString(),
-    author: mockUsers[0],
-    commentCount: 2
-  },
-  {
-    id: 2,
-    content: 'Just finished connecting frontend with backend 🚀',
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    author: mockUsers[1],
-    commentCount: 1
-  },
-  {
-    id: 3,
-    content: 'Spring Boot + React + Tailwind = ❤️',
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    author: mockUsers[4],
-    commentCount: 0
-  },
-  {
-    id: 4,
-    content: 'Spring Boot + React + Tailwind = ❤️',
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    author: mockUsers[6],
-    commentCount: 0
-  }
-];
-
-// ==================== COMMENTS ====================
-let mockComments = [
-  {
-    id: 1,
-    postId: 1,
-    content: 'Nice post!',
-    createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-    author: mockUsers[1]
-  },
-  {
-    id: 2,
-    postId: 1,
-    content: 'Good morning ☕',
-    createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-    author: mockUsers[0]
-  }
-];
-
-// ==================== FRIENDSHIPS ====================
-let mockFriendships = [
-  {
-    id: 1,
-    requesterId: 1,
-    receiverId: 2,
-    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
-    createdAt: new Date().toISOString()
-  },
-    {
-    id: 2,
-    requesterId: 1,
-    receiverId: 3,
-    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
-    createdAt: new Date().toISOString()
-  },
-    {
-    id: 3,
-    requesterId: 1,
-    receiverId: 4,
-    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
-    createdAt: new Date().toISOString()
-  },
-    {
-    id: 4,
-    requesterId: 1,
-    receiverId: 5,
-    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
-    createdAt: new Date().toISOString()
-  },
-    {
-    id: 5,
-    requesterId: 1,
-    receiverId: 6,
-    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
-    createdAt: new Date().toISOString()
-  },
-    {
-    id: 6,
-    requesterId: 1,
-    receiverId: 7,
-    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
-    createdAt: new Date().toISOString()
-  },
-    {
-    id: 7,
-    requesterId: 1,
-    receiverId: 8,
-    status: 'ACCEPTED', // PENDING | ACCEPTED | REJECTED
-    createdAt: new Date().toISOString()
-  }
-];
-
-
-// Helper to simulate network delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Remove password from user objects
-const sanitizeUser = (user) => {
-  const { password, ...safeUser } = user;
-  return safeUser;
+// Helper to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
 };
 
+// Helper for API calls
+const apiCall = async (endpoint, options = {}, requiresAuth = true) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  if (requiresAuth) {
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  console.log(`Making request to: ${API_BASE_URL}${endpoint}`);
+  console.log('Options:', { method: options.method || 'GET', body: options.body });
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+
+    console.log(`Response status: ${response.status} ${response.statusText}`);
+    
+    // Try to get response as text first to see what we're getting
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${responseText || response.statusText}`);
+    }
+
+    if (response.status === 204 || responseText === '') {
+      return null;
+    }
+
+    // Try to parse as JSON
+    try {
+      const jsonResponse = JSON.parse(responseText);
+      console.log('Parsed JSON response:', jsonResponse);
+      return jsonResponse;
+    } catch (jsonError) {
+      console.log('Response is not JSON, returning text:', responseText);
+      return responseText;
+    }
+
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
+  }
+};
+
+
 // ==================== AUTH SERVICE ====================
-export const authService = {
-  login: async (credentials) => {
-    await delay(600);
-    const user = mockUsers.find(u =>
-      u.username.toLowerCase() === credentials.username.toLowerCase() &&
-      u.password === credentials.password
-    );
-    if (user) {
-      return {
-        success: true,
-        token: `mock-jwt-${Date.now()}-${user.id}`,
-        refreshToken: `mock-refresh-${Date.now()}`,
-        user: sanitizeUser(user)
-      };
-    }
-    throw new Error('Invalid username or password. Try: mia/mia123 or test/test123');
-  },
+export const authService = {login: async (credentials) => {
+  return apiCall(
+    '/users/login',
+    {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    },
+    false
+  );
+},
 
-  register: async (userData) => {
-    await delay(800);
-    if (mockUsers.some(u => u.username.toLowerCase() === userData.username.toLowerCase())) {
-      throw new Error('Username already exists');
-    }
-    const newUser = {
-      id: mockUsers.length + 1,
-      ...userData,
-      createdAt: new Date().toISOString()
-    };
-    mockUsers.push(newUser);
-    return {
-      success: true,
-      token: `mock-jwt-${Date.now()}-${newUser.id}`,
-      user: sanitizeUser(newUser)
-    };
-  },
+ register: async (userData) => {
+  return apiCall(
+    '/users',
+    {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    },
+    false 
+  );
+},
 
-  logout: () => Promise.resolve()
+
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return Promise.resolve();
+  },
 };
 
 // ==================== USER SERVICE ====================
 export const userService = {
+  // GET /users - Hämtar alla användare
   getUsers: async () => {
-    await delay(400);
-    return mockUsers.map(sanitizeUser);
+    return apiCall('/users');
   },
 
+  // GET /users/{id} - Hämtar en specifik användare
   getUserById: async (id) => {
-    await delay(300);
-    const user = mockUsers.find(u => u.id === id);
-    return user ? sanitizeUser(user) : null;
+    return apiCall(`/users/${id}`);
   },
 
-  getUserWithPosts: async (id, page = 0, size = 5) => {
-    await delay(500);
-    const user = mockUsers.find(u => u.id === id);
-    if (!user) return null;
-    const allPosts = mockPosts.filter(p => p.author.id === id);
+  // GET /users/{id}/with-posts - Hämtar användare med posts
+  getUserWithPosts: async (id) => {
+    return apiCall(`/users/${id}/with-posts`);
+  },
 
-const start = page * size;
-const content = allPosts.slice(start, start + size);
+  // POST /users - Skapar en ny användare
+  createUser: async (userData) => {
+    return apiCall('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
 
-return {
-  ...sanitizeUser(user),
-  posts: content,
-  totalElements: allPosts.length,
-  totalPages: Math.ceil(allPosts.length / size),
-  page
-};
+  // PUT /users/{id} - Uppdaterar en befintlig användare
+  updateUser: async (id, userData) => {
+    return apiCall(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  },
 
-    return {
-      ...sanitizeUser(user),
-      posts: userPosts
-    };
-  }
+  // DELETE /users/{id} - Tar bort en användare
+  deleteUser: async (id) => {
+    return apiCall(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ==================== POST SERVICE ====================
 export const postService = {
+  // GET /posts - Hämtar posts med pagination och sortering
   getPosts: async (params = {}) => {
-    await delay(400);
-
-    let posts = [...mockPosts];
-
-    // Filter by userId (Wall behavior)
+    const queryParams = new URLSearchParams();
+    
     if (params.userId) {
-      posts = posts.filter(p => p.author.id === Number(params.userId));
+      queryParams.append('userId', params.userId);
     }
-
-    // Sorting
+    if (params.page !== undefined) {
+      queryParams.append('page', params.page);
+    }
+    if (params.size !== undefined) {
+      queryParams.append('size', params.size);
+    }
     if (params.sort) {
-      const [field, direction] = params.sort.split(',');
-      posts.sort((a, b) => {
-        const valueA = new Date(a[field]);
-        const valueB = new Date(b[field]);
-        return direction === 'desc' ? valueB - valueA : valueA - valueB;
-      });
+      queryParams.append('sort', params.sort);
     }
 
-    // Pagination
-    const page = params.page ?? 0;
-    const size = params.size ?? 10;
-
-    const start = page * size;
-    const content = posts.slice(start, start + size);
-
-    const totalElements = posts.length;
-    const totalPages = Math.ceil(totalElements / size);
-
-    return {
-      content,
-      totalElements,
-      totalPages,
-      number: page,
-      size
-    };
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/posts?${queryString}` : '/posts';
+    
+    return apiCall(endpoint);
   },
 
-  createPost: async (postData) => {
-    await delay(500);
-
-    const newPost = {
-      id: mockPosts.length + 1,
-      content: postData.content,
-      author: mockUsers[0], // mock logged in user
-      createdAt: new Date().toISOString(),
-      commentCount: 0
-    };
-
-    mockPosts.unshift(newPost);
-    return newPost;
+  // GET /posts/{id} - Hämtar en specifik post
+  getPostById: async (id) => {
+    return apiCall(`/posts/${id}`);
   },
 
+  // POST /posts - Skapar en ny post
+  createPostForUser: async (userId, postData) => {
+  return apiCall(`/users/${userId}/posts`, {
+    method: 'POST',
+    body: JSON.stringify(postData),
+  });
+},
+
+
+  // PUT /posts/{id} - Uppdaterar en befintlig post
   updatePost: async (postId, postData) => {
-    await delay(400);
-
-    const post = mockPosts.find(p => p.id === postId);
-    if (post) post.content = postData.content;
-
-    return post;
-  },
-
-  deletePost: async (postId) => {
-    await delay(300);
-
-    const index = mockPosts.findIndex(p => p.id === postId);
-    if (index !== -1) mockPosts.splice(index, 1);
-
-    return Promise.resolve();
-  }
-};
-
-
-export const updateUserProfile = async (userId, updatedData) => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  const userIndex = mockUsers.findIndex(u => u.id === userId);
-  if (userIndex === -1) throw new Error('User not found');
-
-  mockUsers[userIndex] = {
-    ...mockUsers[userIndex],
-    ...updatedData
-  };
-
-  return sanitizeUser(mockUsers[userIndex]);
-};
-
-// ==================== COMMENT SERVICE ====================
-export const commentService = {
-
-  getCommentsByPost: async (postId) => {
-    await delay(300);
-
-    const comments = mockComments
-      .filter(c => c.postId === postId)
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // oldest first
-
-    return comments;
-  },
-
-  createComment: async (postId, content) => {
-    await delay(300);
-
-    const newComment = {
-      id: mockComments.length + 1,
-      postId,
-      content,
-      createdAt: new Date().toISOString(),
-      author: mockUsers[0] 
-    };
-
-    mockComments.push(newComment);
-
-    // Update comment count
-    const post = mockPosts.find(p => p.id === postId);
-    if (post) post.commentCount++;
-
-    return newComment;
-  }
-};
-
-// ==================== FRIENDSHIP SERVICE ====================
-export const friendshipService = {
-
-  sendFriendRequest: async (receiverId) => {
-    await delay(300);
-
-    const newRequest = {
-      id: mockFriendships.length + 1,
-      requesterId: mockUsers[0].id,
-      receiverId,
-      status: 'PENDING',
-      createdAt: new Date().toISOString()
-    };
-
-    mockFriendships.push(newRequest);
-    return newRequest;
-  },
-
-  getIncomingRequests: async (userId) => {
-    await delay(300);
-
-    return mockFriendships
-      .filter(f => f.receiverId === userId && f.status === 'PENDING')
-      .map(req => ({
-        ...req,
-        requester: sanitizeUser(
-          mockUsers.find(u => u.id === req.requesterId)
-        )
-      }));
-  },
-
-  respondToRequest: async (requestId, status) => {
-    await delay(300);
-
-    const request = mockFriendships.find(f => f.id === requestId);
-    if (request) request.status = status;
-
-    return request;
-  },
-
-  getFriends: async (userId) => {
-    await delay(300);
-
-    const accepted = mockFriendships.filter(f =>
-      f.status === 'ACCEPTED' &&
-      (f.requesterId === userId || f.receiverId === userId)
-    );
-
-    return accepted.map(f => {
-      const friendId =
-        f.requesterId === userId ? f.receiverId : f.requesterId;
-
-      return sanitizeUser(mockUsers.find(u => u.id === friendId));
+    return apiCall(`/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(postData),
     });
-  }
+  },
+
+  // DELETE /posts/{id} - Tar bort en post
+  deletePost: async (postId) => {
+    return apiCall(`/posts/${postId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
+// ==================== HELPER FUNCTIONS ====================
 
-// ==================== EXPORTS ====================
+// Authentication
 export const login = (credentials) => authService.login(credentials);
 export const register = (userData) => authService.register(userData);
-export const fetchPosts = (params) => postService.getPosts(params);
-export const fetchUserPosts = (userId, page, size) =>
-  userService.getUserWithPosts(userId, page, size);
-export const createPost = (postData) => postService.createPost(postData);
+export const logout = () => authService.logout();
+
+// Posts
+export const fetchFeedPosts = (page = 0, size = 10) => 
+  postService.getPosts({ page, size, sort: 'createdAt,desc' });
+
+export const fetchUserPosts = (userId, page = 0, size = 10) => 
+  postService.getPosts({ userId, page, size, sort: 'createdAt,desc' });
+
+export const createPost = (userId, postData) => postService.createPostForUser(userId, postData);
 export const updatePost = (postId, postData) => postService.updatePost(postId, postData);
 export const deletePost = (postId) => postService.deletePost(postId);
+
+// Users
 export const fetchUserProfile = (userId) => userService.getUserById(userId);
-export const searchUsers = (query) =>
-  userService.getUsers().then(users =>
-    users.filter(user => user.username.toLowerCase().includes(query.toLowerCase()))
-  );
-export const getUsers = () => userService.getUsers();
 export const getUserWithPosts = (userId) => userService.getUserWithPosts(userId);
-export const fetchComments = (postId) =>
-  commentService.getCommentsByPost(postId);
+export const getUsers = () => userService.getUsers();
+export const updateUserProfile = (userId, userData) => userService.updateUser(userId, userData);
+export const deleteUserAccount = (userId) => userService.deleteUser(userId);
 
-export const createComment = (postId, content) =>
-  commentService.createComment(postId, content);
-export const sendFriendRequest = (userId) =>
-  friendshipService.sendFriendRequest(userId);
-
-export const fetchFriendRequests = (userId) =>
-  friendshipService.getIncomingRequests(userId);
-
-export const respondFriendRequest = (requestId, status) =>
-  friendshipService.respondToRequest(requestId, status);
-
-export const fetchFriends = (userId) =>
-  friendshipService.getFriends(userId);
-
+// Search
+export const searchUsers = async (query) => {
+  const users = await userService.getUsers();
+  return users.filter(user => 
+    user.username.toLowerCase().includes(query.toLowerCase()) ||
+    user.email.toLowerCase().includes(query.toLowerCase())
+  );
+};

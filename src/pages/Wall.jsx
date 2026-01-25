@@ -4,9 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import Post from '../components/Post';
 import PostForm from '../components/PostForm';
 import UserInfo from '../components/UserInfo';
-import EditProfileDialog from '../components/EditProfileDialog';
-import { updateUserProfile } from '../services/api';
-import { fetchPosts, fetchUserProfile, createPost, updatePost, deletePost } from '../services/api';
+import { FaSpinner } from 'react-icons/fa';
+import { fetchUserProfile, fetchUserPosts, createPost, updatePost, deletePost } from '../services/api';
 
 export default function Wall({ isOwnWall = false }) {
   const { userId } = useParams();
@@ -18,50 +17,43 @@ export default function Wall({ isOwnWall = false }) {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [showEditProfile, setShowEditProfile] = useState(false);
+  const pageSize = 10;
 
   const currentWallUserId = isOwnWall ? loggedInUser?.id : Number(userId);
-  const isViewingOwnWall = currentWallUserId === loggedInUser?.id;
+  const isViewingOwnWall = isOwnWall || currentWallUserId === loggedInUser?.id;
 
-  const PAGE_SIZE = 5;
+  useEffect(() => {
+    if (currentWallUserId) {
+      loadWallData();
+    }
+  }, [currentWallUserId, page]);
 
-  const loadWallData = useCallback(async (reset = false) => {
-    if (!currentWallUserId) return;
+  useEffect(() => {
+    setPage(0); // Reset pagination when user changes
+  }, [currentWallUserId]);
 
     try {
       setLoading(true);
       setError(null);
 
-      const currentPage = reset ? 0 : page;
-
-      // Load profile
+      // Load user profile
       const userData = await fetchUserProfile(currentWallUserId);
       setWallUser(userData);
 
-      // Load posts using unified /posts endpoint
-      const postsData = await fetchPosts({
-        userId: currentWallUserId,
-        page: currentPage,
-        size: PAGE_SIZE,
-        sort: 'createdAt,desc'
-      });
+      // Load user posts with pagination
+      const response = await fetchUserPosts(currentWallUserId, page, pageSize);
+      const newPosts = response.content || [];
 
-      const newPosts = postsData.content;
-      const totalPages = postsData.totalPages;
-
-      setPosts(prev =>
-        currentPage === 0 ? newPosts : [...prev, ...newPosts]
-      );
-
-      setHasMore(currentPage < totalPages - 1);
-
-      if (reset) {
-        setPage(0);
+      if (page === 0) {
+        setPosts(newPosts);
+      } else {
+        setPosts(prev => [...prev, ...newPosts]);
       }
 
+      setHasMore(page < response.totalPages - 1);
     } catch (err) {
+      setError('Failed to load wall data. Please try again.');
       console.error(err);
-      setError('Failed to load wall data');
     } finally {
       setLoading(false);
     }
@@ -113,27 +105,22 @@ export default function Wall({ isOwnWall = false }) {
   const handleCreatePost = async (content) => {
     try {
       const newPost = await createPost({ content });
-
-      // prepend new post
       setPosts(prev => [newPost, ...prev]);
     } catch (err) {
       console.error(err);
-      setError('Failed to create post');
+      alert('Failed to create post');
     }
   };
 
   const handleUpdatePost = async (postId, content) => {
     try {
       await updatePost(postId, { content });
-
-      setPosts(prev =>
-        prev.map(post =>
-          post.id === postId ? { ...post, content } : post
-        )
-      );
+      setPosts(posts.map(post => 
+        post.id === postId ? { ...post, content, updatedAt: new Date().toISOString() } : post
+      ));
     } catch (err) {
       console.error(err);
-      setError('Failed to update post');
+      throw err;
     }
   };
 
@@ -144,26 +131,44 @@ export default function Wall({ isOwnWall = false }) {
       setPosts(prev => prev.filter(post => post.id !== postId));
     } catch (err) {
       console.error(err);
-      setError('Failed to delete post');
+      throw err;
     }
   };
 
-  if (loading && posts.length === 0) {
-    return <div className="text-center py-12">Loading wall...</div>;
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      setPage(prev => prev + 1);
+    }
+  };
+
+  if (loading && page === 0) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center py-12">
+          <FaSpinner className="animate-spin text-3xl text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading wall...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (error && posts.length === 0) {
-    return <div className="text-center py-12 text-red-500">{error}</div>;
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+          <p className="text-red-700">{error}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="max-w-6xl mx-auto">
       {wallUser && (
-        <UserInfo
-          user={wallUser}
-          isOwnProfile={isViewingOwnWall}
-          postCount={posts.length}
-          onEditProfile={isViewingOwnWall ? () => setShowEditProfile(true) : null}
+        <UserInfo 
+          user={wallUser} 
+          isOwnProfile={isViewingOwnWall} 
+          postCount={posts.length} 
         />
       )}
 
@@ -171,14 +176,16 @@ export default function Wall({ isOwnWall = false }) {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {isViewingOwnWall ? 'Your Posts' : `${wallUser?.username}'s Posts`}
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              ({posts.length})
-            </span>
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {isViewingOwnWall ? 'Your Posts' : `${wallUser?.username}'s Posts`}
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({posts.length})
+              </span>
+            </h2>
+          </div>
         </div>
-
+        
         <div className="p-6">
           {posts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
@@ -187,17 +194,38 @@ export default function Wall({ isOwnWall = false }) {
                 : 'No posts yet.'}
             </div>
           ) : (
-            <div className="space-y-6">
-              {posts.map(post => (
-                <Post
-                  key={post.id}
-                  post={post}
-                  isOwnPost={post.author?.id === loggedInUser?.id}
-                  onUpdate={handleUpdatePost}
-                  onDelete={handleDeletePost}
-                />
-              ))}
-            </div>
+            <>
+              <div className="space-y-6 mb-8">
+                {posts.map(post => (
+                  <Post
+                    key={post.id}
+                    post={post}
+                    isOwnPost={post.author?.id === loggedInUser?.id}
+                    onUpdate={handleUpdatePost}
+                    onDelete={handleDeletePost}
+                  />
+                ))}
+              </div>
+
+              {hasMore && (
+                <div className="text-center">
+                  <button
+                    onClick={loadMore}
+                    disabled={loading}
+                    className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center">
+                        <FaSpinner className="animate-spin mr-2" />
+                        Loading more...
+                      </span>
+                    ) : (
+                      'Load More Posts'
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {hasMore && posts.length > 0 && (

@@ -8,7 +8,6 @@ export default function Register() {
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
     bio: ''
   });
 
@@ -17,6 +16,7 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -56,70 +56,45 @@ export default function Register() {
       newErrors.password = 'Password is required';
     }
 
-    if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
     return newErrors;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const validationErrors = validateForm();
-
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
-    setLoading(true);
-    setErrors({});
-
-    try {
-      const userData = {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        bio: formData.bio,
-      };
-
-      const result = await register(userData);
-
-      if (result.success) {
-        setSuccess(true);
-
-        setTimeout(() => {
-          navigate('/login');
-        }, 2500);
-      }
-
-    } catch (err) {
-      setErrors({ general: err.message || 'Registration failed' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-100 px-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg text-center max-w-md w-full">
-          <FaUserPlus className="text-green-600 text-4xl mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Account Created 🎉</h2>
-          <p className="text-gray-600 mb-4">Redirecting to login...</p>
-
-          <div className="h-2 bg-gray-200 rounded">
-            <div className="h-full bg-green-500 rounded animate-progress"></div>
-          </div>
-        </div>
-      </div>
-    );
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  const validationErrors = validateForm();
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
   }
+
+  setLoading(true);
+  setErrors({});
+
+  try {
+    const userData = {
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+      bio: formData.bio || '',
+    };
+
+    const result = await register(userData);
+
+    if (result.success) {
+      // User created but no token, redirect to login
+      setSuccess(true);
+      setSuccessMessage(result.message || "User created! Please login.");
+      setTimeout(() => navigate("/login"), 3000);
+    } else {
+      setErrors({ general: result.error });
+    }
+
+  } catch (err) {
+    setErrors({ general: err.message || "Registration failed" });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
@@ -200,34 +175,6 @@ export default function Register() {
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
-
-          {/* Confirm Password */}
-       <div className="relative">
-      <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-      <input
-      type={showConfirmPassword ? 'text' : 'password'}
-      name="confirmPassword"
-      placeholder="Confirm password"
-      value={formData.confirmPassword}
-      onChange={handleChange}
-      className="w-full pl-10 pr-10 px-4 py-3 border rounded-lg"
-      required
-      />
-      <button
-      type="button"
-      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-      >
-      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-      </button>
-    </div>
-
-      {/* Display error immediately if passwords do not match */}
-      {errors.confirmPassword && (
-        <div className="text-red-600 text-sm mt-1">
-      {errors.confirmPassword}
-     </div>
-    )}
 
           <button
             type="submit"
