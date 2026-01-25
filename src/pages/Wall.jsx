@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Post from '../components/Post';
@@ -32,7 +32,6 @@ export default function Wall({ isOwnWall = false }) {
     setPage(0); // Reset pagination when user changes
   }, [currentWallUserId]);
 
-  const loadWallData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -57,6 +56,49 @@ export default function Wall({ isOwnWall = false }) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  }, [currentWallUserId, page]);
+
+  useEffect(() => {
+    setPosts([]);
+    setPage(0);
+    setHasMore(true);
+    setWallUser(null);
+
+    loadWallData(true);
+  }, [currentWallUserId]);
+
+  const handleLoadMore = async () => {
+    if (!hasMore || loading) return;
+
+    const nextPage = page + 1;
+    setPage(nextPage);
+
+    try {
+      const postsData = await fetchPosts({
+        userId: currentWallUserId,
+        page: nextPage,
+        size: PAGE_SIZE,
+        sort: 'createdAt,desc'
+      });
+
+      setPosts(prev => [...prev, ...postsData.content]);
+      setHasMore(nextPage < postsData.totalPages - 1);
+
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load more posts');
+    }
+  };
+
+  const handleProfileSave = async (updatedData) => {
+    try {
+      const updatedUser = await updateUserProfile(currentWallUserId, updatedData);
+      setWallUser(updatedUser);
+      setShowEditProfile(false);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update profile');
     }
   };
 
@@ -85,7 +127,8 @@ export default function Wall({ isOwnWall = false }) {
   const handleDeletePost = async (postId) => {
     try {
       await deletePost(postId);
-      setPosts(posts.filter(post => post.id !== postId));
+
+      setPosts(prev => prev.filter(post => post.id !== postId));
     } catch (err) {
       console.error(err);
       throw err;
@@ -146,7 +189,9 @@ export default function Wall({ isOwnWall = false }) {
         <div className="p-6">
           {posts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              {isViewingOwnWall ? "You haven't posted anything yet." : 'No posts yet.'}
+              {isViewingOwnWall
+                ? "You haven't posted anything yet."
+                : 'No posts yet.'}
             </div>
           ) : (
             <>
@@ -182,8 +227,26 @@ export default function Wall({ isOwnWall = false }) {
               )}
             </>
           )}
+
+          {hasMore && posts.length > 0 && (
+            <button
+              onClick={handleLoadMore}
+              disabled={loading}
+              className="mt-6 w-full bg-gray-100 hover:bg-gray-200 py-2 rounded transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : 'Load more'}
+            </button>
+          )}
         </div>
       </div>
+
+      {showEditProfile && wallUser && (
+        <EditProfileDialog
+          user={wallUser}
+          onClose={() => setShowEditProfile(false)}
+          onSave={handleProfileSave}
+        />
+      )}
     </div>
   );
 }
