@@ -1,5 +1,67 @@
 const API_BASE_URL = '/api';
 
+//create post to cloud database
+export async function createPostReal({content, userId}){
+    const response = await fetch(
+    `https://itchy-philomena-sofi-eklof-3b955ae4.koyeb.app/posts?userId=${userId}`, //koyeb link
+        {
+            method: 'POST', //post-action
+            headers: {
+                'Content-Type': 'application/json', //sending JSON
+            },
+            body: JSON.stringify({text: content})
+        }
+    );
+
+    if(!response.ok){
+        //throw error
+        const text = await response.text().catch(()=>'');
+        console.error('Create post failed', response.status, text);
+        throw new Error('Failed to crete post');
+    }
+
+    //recieve created post as JSON
+    return await response.json();
+
+}
+
+//update post to cloud database
+export async function updatePostReal(postId, {content}){
+    const response = await fetch(
+        'https://itchy-philomena-sofi-eklof-3b955ae4.koyeb.app/posts/${postId}',
+    {
+        method: 'PUT',
+        headers:{
+            'Content-Type':'application/json',
+        },
+        body: JSON.stringify({text : content }),
+        }
+    );
+
+    if(!response.ok){
+        const text = await response.text().catch(()=>'');
+        console.error('Update post failed:', response.status, text);
+        throw new Error('Failed to update post');
+    }
+
+    return await response.json();
+}
+
+//delete post in cloud database
+export async function deletePostReal(postId){
+    const response = await fetch(
+        `https://itchy-philomena-sofi-eklof-3b955ae4.koyeb.app/posts/${postId}`,
+        {
+            method : 'DELETE',
+        }
+    );
+    if (!response.ok){
+        const text = await response.text().catch(()=> '');
+        consoe.error('Delete post failed : ', response.status, text);
+        throw new Error('Failed to delete post');
+    }
+}
+
 // Mock database
 let mockUsers = [
   {

@@ -5,8 +5,8 @@ import Post from '../components/Post';
 import PostForm from '../components/PostForm';
 import UserInfo from '../components/UserInfo';
 import EditProfileDialog from '../components/EditProfileDialog';
-import { updateUserProfile } from '../services/api';
-import { fetchPosts, fetchUserProfile, createPost, updatePost, deletePost } from '../services/api';
+import {updateUserProfile} from '../services/api';
+import { fetchPosts, fetchUserProfile, createPostReal,  updatePostReal, deletePostReal } from '../services/api';
 
 export default function Wall({ isOwnWall = false }) {
   const { userId } = useParams();
@@ -112,20 +112,25 @@ export default function Wall({ isOwnWall = false }) {
 
   const handleCreatePost = async (content) => {
     try {
-      const newPost = await createPost({ content });
-
-      // prepend new post
-      setPosts(prev => [newPost, ...prev]);
+        //call real api to create post
+        const newPost = await createPostReal({
+            content,
+            userId: loggedInUser.id,
+        });
+        setPosts(prev=>[newPost, ...prev])
     } catch (err) {
       console.error(err);
       setError('Failed to create post');
     }
   };
 
+  //update a post in backend and react state
   const handleUpdatePost = async (postId, content) => {
     try {
-      await updatePost(postId, { content });
+        //call real api to update post
+      await updatePostReal(postId, { content });
 
+      //update post in post array
       setPosts(prev =>
         prev.map(post =>
           post.id === postId ? { ...post, content } : post
@@ -137,10 +142,13 @@ export default function Wall({ isOwnWall = false }) {
     }
   };
 
+  //delete a post in backend and local state
   const handleDeletePost = async (postId) => {
     try {
-      await deletePost(postId);
+        //call rreal api to delete the post
+      await deletePostReal(postId);
 
+      //remove post from posts array
       setPosts(prev => prev.filter(post => post.id !== postId));
     } catch (err) {
       console.error(err);

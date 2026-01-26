@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Post from '../components/Post';
 import { FaRss, FaUsers } from 'react-icons/fa';
-import { updatePost, deletePost, fetchPosts } from '../services/api';
+import { updatePostReal, deletePostReal, fetchPosts } from '../services/api';
 
 export default function Feed() {
   const { user } = useAuth();
@@ -33,7 +33,7 @@ export default function Feed() {
 
   const handleUpdate = async (postId, content) => {
     try {
-      await updatePost(postId, { content });
+      await updatePostReal(postId, { content });
       setPosts(posts.map(post =>
         post.id === postId ? { ...post, content, updatedAt: new Date().toISOString() } : post
       ));
@@ -45,7 +45,7 @@ export default function Feed() {
 
   const handleDelete = async (postId) => {
     try {
-      await deletePost(postId);
+      await deletePostReal(postId);
       setPosts(posts.filter(post => post.id !== postId));
     } catch (err) {
       console.error(err);
