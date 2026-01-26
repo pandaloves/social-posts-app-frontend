@@ -28,7 +28,7 @@ export async function createPostReal({content, userId}){
 //update post to cloud database
 export async function updatePostReal(postId, {content}){
     const response = await fetch(
-        'https://itchy-philomena-sofi-eklof-3b955ae4.koyeb.app/posts/${postId}',
+        `https://itchy-philomena-sofi-eklof-3b955ae4.koyeb.app/posts/${postId}`,
     {
         method: 'PUT',
         headers:{
@@ -57,7 +57,7 @@ export async function deletePostReal(postId){
     );
     if (!response.ok){
         const text = await response.text().catch(()=> '');
-        consoe.error('Delete post failed : ', response.status, text);
+        console.error('Delete post failed : ', response.status, text);
         throw new Error('Failed to delete post');
     }
 }
