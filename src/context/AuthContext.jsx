@@ -80,10 +80,11 @@ const login = async (username, password) => {
       // Decode JWT
      const decoded = jwtDecode(response.token);
       // decoded.sub usually has the user id or username
-      const loggedInUser = { username: decoded.sub, id: decoded.sub };
+      const loggedInUser = { username: decoded.sub, id: decoded.iat };
 
       localStorage.setItem('user', JSON.stringify(loggedInUser));
       setUser(loggedInUser);
+      console.log("user logged in:", loggedInUser);
 
       return { success: true };
     }
