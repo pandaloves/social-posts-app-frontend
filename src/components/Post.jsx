@@ -99,7 +99,7 @@ export default function Post({ post, isOwnPost, onUpdate, onDelete }) {
             <button
               onClick={() => {
                 setIsEditing(false);
-                setEditedContent(post.content);
+                setEditedContent(post.text);
               }}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
             >
@@ -108,7 +108,7 @@ export default function Post({ post, isOwnPost, onUpdate, onDelete }) {
             </button>
             <button
               onClick={handleSave}
-              disabled={editedContent.trim() === '' || editedContent === post.content}
+              disabled={editedContent.trim() === '' || editedContent === post.text}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
             >
               <FaCheck />
@@ -122,20 +122,6 @@ export default function Post({ post, isOwnPost, onUpdate, onDelete }) {
         </p>
       )}
 
-      {/* Post Stats */}
-      <div className="mt-4 pt-4 border-t border-gray-100 flex items-center text-sm text-gray-500">
-        <div className="flex items-center space-x-4">
-          <button className="hover:text-blue-600 transition-colors">
-            Like ({post.likeCount || 0})
-          </button>
-          <button className="hover:text-blue-600 transition-colors">
-            Comment ({post.commentCount || 0})
-          </button>
-          <button className="hover:text-blue-600 transition-colors">
-            Share
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
