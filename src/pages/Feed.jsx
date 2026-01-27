@@ -11,10 +11,14 @@ export default function Feed() {
   const { posts, setAllPosts, updatePostById, deletePostById } = usePosts();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const pageSize = 5;
 
   useEffect(() => {
     loadPosts();
-  }, []);
+  }, [page]);
 
   const loadPosts = async () => {
     try {

@@ -5,13 +5,8 @@ import { usePosts } from '../context/PostContext';
 import Post from '../components/Post';
 import PostForm from '../components/PostForm';
 import UserInfo from '../components/UserInfo';
-import { 
-  fetchUserPosts, 
-  fetchUserProfile, 
-  createPost, 
-  updatePost, 
-  deletePost
-} from '../services/api';
+import { FaSpinner } from 'react-icons/fa';
+import { fetchUserProfile, fetchUserPosts, createPost, updatePost, deletePost } from '../services/api';
 
 export default function Wall({ isOwnWall = false }) {
   const { userId } = useParams();
@@ -21,12 +16,21 @@ export default function Wall({ isOwnWall = false }) {
   const [wallUser, setWallUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const pageSize = 10;
 
-  const currentWallUserId = isOwnWall ? loggedInUser?.id : userId;
+  const currentWallUserId = isOwnWall ? loggedInUser?.id : Number(userId);
   const isViewingOwnWall = isOwnWall || currentWallUserId === loggedInUser?.id;
 
   useEffect(() => {
-    if (currentWallUserId) loadWallData();
+    if (currentWallUserId) {
+      loadWallData();
+    }
+  }, [currentWallUserId, page]);
+
+  useEffect(() => {
+    setPage(0); // Reset pagination when user changes
   }, [currentWallUserId]);
 
   const loadWallData = async () => {
@@ -88,33 +92,57 @@ const handleDeletePost = async (postId) => {
 };
 
 
-  if (loading) return <div className="text-center py-12">Loading wall...</div>;
-  if (error) return <div className="text-center py-12 text-red-500">{error}</div>;
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      setPage(prev => prev + 1);
+    }
+  };
+
+  if (loading && page === 0) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center py-12">
+          <FaSpinner className="animate-spin text-3xl text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading wall...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+          <p className="text-red-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
       {wallUser && <UserInfo user={wallUser} isOwnProfile={isViewingOwnWall} postCount={posts.length} />}
 
-      {isViewingOwnWall && (
-        <div className="mb-8">
-          <PostForm onSubmit={handleCreatePost} />
-        </div>
-      )}
+      {isViewingOwnWall && <PostForm onSubmit={handleCreatePost} />}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {isViewingOwnWall ? 'Your Posts' : `${wallUser?.username}'s Posts`}
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              ({posts.length} {posts.length === 1 ? 'post' : 'posts'})
-            </span>
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {isViewingOwnWall ? 'Your Posts' : `${wallUser?.username}'s Posts`}
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({posts.length})
+              </span>
+            </h2>
+          </div>
         </div>
-
+        
         <div className="p-6">
           {posts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              {isViewingOwnWall ? "You haven't posted anything yet." : 'No posts yet.'}
+              {isViewingOwnWall
+                ? "You haven't posted anything yet."
+                : 'No posts yet.'}
             </div>
           ) : (
             <div className="space-y-6">
@@ -131,6 +159,14 @@ const handleDeletePost = async (postId) => {
           )}
         </div>
       </div>
+
+      {showEditProfile && wallUser && (
+        <EditProfileDialog
+          user={wallUser}
+          onClose={() => setShowEditProfile(false)}
+          onSave={handleProfileSave}
+        />
+      )}
     </div>
   );
 }
