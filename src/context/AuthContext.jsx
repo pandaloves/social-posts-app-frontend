@@ -20,6 +20,8 @@ export default function AuthProvider({ children }) {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('user');
       const token = localStorage.getItem('token');
+
+
       
       if (storedUser && token) {
         try {
@@ -61,7 +63,6 @@ export default function AuthProvider({ children }) {
   }
 };
 
-
 const login = async (username, password) => {
   try {
     const response = await authService.login({ username, password });
@@ -70,19 +71,23 @@ const login = async (username, password) => {
       return { success: false, error: 'Invalid response from server' };
     }
 
-    // Save tokens
-    localStorage.setItem('token', response.token);
-
+    // Save tokens (trimmed)
+    localStorage.setItem('token', response.token.trim());
     if (response.refreshToken) {
-      localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('refreshToken', response.refreshToken.trim());
     }
 
     // Fetch all users
     const users = await getUsers();
 
+    // Defensive check
+    if (!users || users.length === 0) {
+      return { success: false, error: 'No users found' };
+    }
+
     // Find logged in user by username
     const matchedUser = users.find(
-      user => user.username === username
+      user => user.username.trim() === username.trim()
     );
 
     if (!matchedUser) {
@@ -102,6 +107,7 @@ const login = async (username, password) => {
     return { success: true };
 
   } catch (error) {
+    console.error('Login failed:', error);
     return { success: false, error: error.message || 'Login failed' };
   }
 };
