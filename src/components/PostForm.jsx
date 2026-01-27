@@ -5,12 +5,14 @@ import { FaPaperPlane, FaUser } from 'react-icons/fa';
 export default function PostForm({ onSubmit, initialContent = '', onCancel }) {
   const [content, setContent] = useState(initialContent);
   const [isSubmitting, setIsSubmitting] = useState(false);
- const { user } = useAuth();
+  const { user } = useAuth();
 
-const handleSubmit = async (e) => {
+  // Form submission
+  const handleSubmit = async (e) => {
   e.preventDefault();
-  
-  if (!content.trim()) {
+
+  const trimmedContent = content.trim();
+  if (!trimmedContent) {
     alert('Please write something before posting');
     return;
   }
@@ -18,13 +20,15 @@ const handleSubmit = async (e) => {
   setIsSubmitting(true);
   try {
     if (!user?.id) throw new Error('User ID not found');
-    await onSubmit(user.id, { text: content });
-    console.log("user", user);
+
+    // Send only { text: ... }
+    await onSubmit({ text: trimmedContent });
+
     setContent('');
     if (onCancel) onCancel();
   } catch (error) {
-    console.error('Error creating post:', error);
-    alert('Failed to create post');
+    console.error('Error submitting post:', error);
+    alert('Failed to submit post');
   } finally {
     setIsSubmitting(false);
   }
@@ -41,7 +45,10 @@ const handleSubmit = async (e) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1">
           <div className="mb-4">
-            <label htmlFor="post-content" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="post-content"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               What's on your mind, {user?.username || 'User'}?
             </label>
             <textarea
@@ -57,13 +64,15 @@ const handleSubmit = async (e) => {
 
           {/* Character Counter */}
           <div className="flex items-center justify-between mb-4">
-            <span className={`text-sm ${content.length > 500 ? 'text-red-500' : 'text-gray-500'}`}>
+            <span
+              className={`text-sm ${
+                content.length > 500 ? 'text-red-500' : 'text-gray-500'
+              }`}
+            >
               {content.length}/500 characters
             </span>
             {content.length > 500 && (
-              <span className="text-sm text-red-500">
-                Character limit exceeded
-              </span>
+              <span className="text-sm text-red-500">Character limit exceeded</span>
             )}
           </div>
 

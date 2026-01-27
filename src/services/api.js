@@ -22,20 +22,14 @@ const apiCall = async (endpoint, options = {}, requiresAuth = true) => {
     }
   }
 
-  console.log(`Making request to: ${API_BASE_URL}${endpoint}`);
-  console.log('Options:', { method: options.method || 'GET', body: options.body });
-
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers
     });
-
-    console.log(`Response status: ${response.status} ${response.statusText}`);
     
     // Try to get response as text first to see what we're getting
     const responseText = await response.text();
-    console.log('Raw response text:', responseText);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${responseText || response.statusText}`);
@@ -48,14 +42,14 @@ const apiCall = async (endpoint, options = {}, requiresAuth = true) => {
     // Try to parse as JSON
     try {
       const jsonResponse = JSON.parse(responseText);
-      console.log('Parsed JSON response:', jsonResponse);
       return jsonResponse;
     } catch (jsonError) {
-      console.log('Response is not JSON, returning text:', responseText);
       return responseText;
     }
 
   } catch (error) {
+    console.log("REQUEST URL:", `${API_BASE_URL}${endpoint}`);
+
     console.error('API call failed:', error);
     throw error;
   }
@@ -207,6 +201,7 @@ export const fetchUserPosts = (userId, page = 0, size = 10) =>
 export const createPost = (userId, postData) => postService.createPostForUser(userId, postData);
 export const updatePost = (postId, postData) => postService.updatePost(postId, postData);
 export const deletePost = (postId) => postService.deletePost(postId);
+
 
 // Users
 export const fetchUserProfile = (userId) => userService.getUserById(userId);

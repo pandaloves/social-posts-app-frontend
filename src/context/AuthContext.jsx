@@ -1,8 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/api';
-import { jwtDecode } from 'jwt-decode';
-
-
+import { authService, getUsers } from '../services/api';
 
 const AuthContext = createContext(undefined);
 
@@ -28,7 +25,6 @@ export default function AuthProvider({ children }) {
         try {
           setUser(JSON.parse(storedUser));
         } catch (error) {
-          console.error('Error parsing stored user:', error);
           clearAuthData();
         }
       }
@@ -61,7 +57,6 @@ export default function AuthProvider({ children }) {
 
     return { success: false, error: 'Registration failed' };
   } catch (error) {
-    console.error('Registration error:', error);
     return { success: false, error: error.message || 'Registration failed' };
   }
 };
@@ -71,31 +66,45 @@ const login = async (username, password) => {
   try {
     const response = await authService.login({ username, password });
 
-    if (response.token) {
-      localStorage.setItem('token', response.token);
-      if (response.refreshToken) {
-        localStorage.setItem('refreshToken', response.refreshToken);
-      }
-
-      // Decode JWT
-     const decoded = jwtDecode(response.token);
-      // decoded.sub usually has the user id or username
-      const loggedInUser = { username: decoded.sub, id: decoded.sub };
-
-      localStorage.setItem('user', JSON.stringify(loggedInUser));
-      setUser(loggedInUser);
-
-      return { success: true };
+    if (!response.token) {
+      return { success: false, error: 'Invalid response from server' };
     }
 
-    return { success: false, error: 'Invalid response from server' };
+    // Save tokens
+    localStorage.setItem('token', response.token);
+
+    if (response.refreshToken) {
+      localStorage.setItem('refreshToken', response.refreshToken);
+    }
+
+    // Fetch all users
+    const users = await getUsers();
+
+    // Find logged in user by username
+    const matchedUser = users.find(
+      user => user.username === username
+    );
+
+    if (!matchedUser) {
+      return { success: false, error: 'User profile not found' };
+    }
+
+    const loggedInUser = {
+      id: matchedUser.id,
+      username: matchedUser.username,
+      email: matchedUser.email,
+    };
+
+    // Save user
+    localStorage.setItem('user', JSON.stringify(loggedInUser));
+    setUser(loggedInUser);
+
+    return { success: true };
+
   } catch (error) {
-    console.error('Login error:', error);
     return { success: false, error: error.message || 'Login failed' };
   }
 };
-
-
 
   const logout = () => {
     clearAuthData();

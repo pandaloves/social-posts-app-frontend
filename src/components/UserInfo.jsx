@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import UserProfileEdit from './UserProfileEdit';
+import { FaEdit } from 'react-icons/fa';
 
 export default function UserInfo({ user, isOwnProfile, postCount }) {
   const [isEditing, setIsEditing] = useState(false);

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePosts } from '../context/PostContext';
 import Post from '../components/Post';
 import PostForm from '../components/PostForm';
 import UserInfo from '../components/UserInfo';
@@ -10,9 +11,9 @@ import { fetchUserProfile, fetchUserPosts, createPost, updatePost, deletePost } 
 export default function Wall({ isOwnWall = false }) {
   const { userId } = useParams();
   const { user: loggedInUser } = useAuth();
+  const { posts, setAllPosts, addPost, updatePostById, deletePostById } = usePosts();
 
   const [wallUser, setWallUser] = useState(null);
-  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
@@ -32,108 +33,64 @@ export default function Wall({ isOwnWall = false }) {
     setPage(0); // Reset pagination when user changes
   }, [currentWallUserId]);
 
-    try {
-      setLoading(true);
-      setError(null);
+  const loadWallData = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      // Load user profile
-      const userData = await fetchUserProfile(currentWallUserId);
-      setWallUser(userData);
+    // Fetch the auth user's profile
+    const userData = await fetchUserProfile(loggedInUser?.id);
+    setWallUser(userData);
 
-      // Load user posts with pagination
-      const response = await fetchUserPosts(currentWallUserId, page, pageSize);
-      const newPosts = response.content || [];
+    // Fetch only posts of the auth user
+    const postsData = await fetchUserPosts(loggedInUser?.id); 
+    const normalizedPosts = (postsData.content || []).map(p => ({
+      ...p,
+      user: p.user,
+    }));
 
-      if (page === 0) {
-        setPosts(newPosts);
-      } else {
-        setPosts(prev => [...prev, ...newPosts]);
-      }
+    // Sort newest first
+    const sortedPosts = normalizedPosts.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
 
-      setHasMore(page < response.totalPages - 1);
-    } catch (err) {
-      setError('Failed to load wall data. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentWallUserId, page]);
+    setAllPosts(sortedPosts); 
+  } catch (err) {
+    console.error('Error loading wall:', err);
+    setError('Failed to load wall data. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    setPosts([]);
-    setPage(0);
-    setHasMore(true);
-    setWallUser(null);
 
-    loadWallData(true);
-  }, [currentWallUserId]);
+const handleCreatePost = async (postData) => {
+  // Pass loggedInUser.id in the URL (handled by API service)
+  const newPost = await createPost(loggedInUser.id, postData);
 
-  const handleLoadMore = async () => {
-    if (!hasMore || loading) return;
+  addPost({
+    ...newPost,
+    user: {
+      id: loggedInUser.id,
+      username: loggedInUser.username,
+      email: loggedInUser.email,
+    },
+  });
+};
 
-    const nextPage = page + 1;
-    setPage(nextPage);
 
-    try {
-      const postsData = await fetchPosts({
-        userId: currentWallUserId,
-        page: nextPage,
-        size: PAGE_SIZE,
-        sort: 'createdAt,desc'
-      });
 
-      setPosts(prev => [...prev, ...postsData.content]);
-      setHasMore(nextPage < postsData.totalPages - 1);
 
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load more posts');
-    }
-  };
+ const handleUpdatePost = async (postId, text) => {
+  await updatePost(postId, { text });
+  updatePostById(postId, { text, updatedAt: new Date().toISOString() });
+};
 
-  const handleProfileSave = async (updatedData) => {
-    try {
-      const updatedUser = await updateUserProfile(currentWallUserId, updatedData);
-      setWallUser(updatedUser);
-      setShowEditProfile(false);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to update profile');
-    }
-  };
+const handleDeletePost = async (postId) => {
+  await deletePost(postId);
+  deletePostById(postId);
+};
 
-  const handleCreatePost = async (content) => {
-    try {
-      const newPost = await createPost({ content });
-      setPosts(prev => [newPost, ...prev]);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to create post');
-    }
-  };
-
-  const handleUpdatePost = async (postId, content) => {
-    try {
-      await updatePost(postId, { content });
-      setPosts(posts.map(post => 
-        post.id === postId ? { ...post, content, updatedAt: new Date().toISOString() } : post
-      ));
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
-
-  const handleDeletePost = async (postId) => {
-    try {
-      await deletePost(postId);
-
-      setPosts(prev => prev.filter(post => post.id !== postId));
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
 
   const loadMore = () => {
     if (hasMore && !loading) {
@@ -164,13 +121,7 @@ export default function Wall({ isOwnWall = false }) {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {wallUser && (
-        <UserInfo 
-          user={wallUser} 
-          isOwnProfile={isViewingOwnWall} 
-          postCount={posts.length} 
-        />
-      )}
+      {wallUser && <UserInfo user={wallUser} isOwnProfile={isViewingOwnWall} postCount={posts.length} />}
 
       {isViewingOwnWall && <PostForm onSubmit={handleCreatePost} />}
 
@@ -194,48 +145,17 @@ export default function Wall({ isOwnWall = false }) {
                 : 'No posts yet.'}
             </div>
           ) : (
-            <>
-              <div className="space-y-6 mb-8">
-                {posts.map(post => (
-                  <Post
-                    key={post.id}
-                    post={post}
-                    isOwnPost={post.author?.id === loggedInUser?.id}
-                    onUpdate={handleUpdatePost}
-                    onDelete={handleDeletePost}
-                  />
-                ))}
-              </div>
-
-              {hasMore && (
-                <div className="text-center">
-                  <button
-                    onClick={loadMore}
-                    disabled={loading}
-                    className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                  >
-                    {loading ? (
-                      <span className="flex items-center justify-center">
-                        <FaSpinner className="animate-spin mr-2" />
-                        Loading more...
-                      </span>
-                    ) : (
-                      'Load More Posts'
-                    )}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          {hasMore && posts.length > 0 && (
-            <button
-              onClick={handleLoadMore}
-              disabled={loading}
-              className="mt-6 w-full bg-gray-100 hover:bg-gray-200 py-2 rounded transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Loading...' : 'Load more'}
-            </button>
+            <div className="space-y-6">
+              {posts.map(post => (
+                <Post
+                  key={post.id}
+                  post={post}
+                  isOwnPost={post.user?.id === loggedInUser?.id}
+                  onUpdate={handleUpdatePost}
+                  onDelete={handleDeletePost}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>

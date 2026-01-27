@@ -7,12 +7,14 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AuthProvider from './context/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import PostProvider from './context/PostContext';
 
 export default function App() {
   return (
     <ErrorBoundary>
     <Router>
       <AuthProvider>
+        <PostProvider>
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
           <Navbar />
           <main className="container mx-auto px-4 py-8">
@@ -51,6 +53,7 @@ export default function App() {
             </Routes>
           </main>
         </div>
+        </PostProvider>
       </AuthProvider>
     </Router>
     </ErrorBoundary>
