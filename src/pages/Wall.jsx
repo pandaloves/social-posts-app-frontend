@@ -42,7 +42,7 @@ export default function Wall({ isOwnWall = false }) {
     const postsData = await fetchUserPosts(loggedInUser?.id); 
     const normalizedPosts = (postsData.content || []).map(p => ({
       ...p,
-      user: p.user || p.author,
+      user: p.user 
     }));
 
     // Sort newest first
