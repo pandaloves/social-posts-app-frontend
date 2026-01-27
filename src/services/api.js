@@ -139,26 +139,18 @@ export const userService = {
 export const postService = {
   // GET /posts - Hämtar posts med pagination och sortering
   getPosts: async (params = {}) => {
-    const queryParams = new URLSearchParams();
-    
-    if (params.userId) {
-      queryParams.append('userId', params.userId);
-    }
-    if (params.page !== undefined) {
-      queryParams.append('page', params.page);
-    }
-    if (params.size !== undefined) {
-      queryParams.append('size', params.size);
-    }
-    if (params.sort) {
-      queryParams.append('sort', params.sort);
-    }
+  const queryParams = new URLSearchParams();
+  if (params.userId) queryParams.append('userId', params.userId);
+  if (params.page !== undefined) queryParams.append('page', params.page);
+  if (params.size !== undefined) queryParams.append('size', params.size);
+  if (params.sort) queryParams.append('sort', params.sort);
 
-    const queryString = queryParams.toString();
-    const endpoint = queryString ? `/posts?${queryString}` : '/posts';
-    
-    return apiCall(endpoint);
-  },
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/posts?${queryString}` : '/posts';
+  
+  return apiCall(endpoint);
+},
+
 
   // GET /posts/{id} - Hämtar en specifik post
   getPostById: async (id) => {
@@ -205,6 +197,8 @@ export const fetchUserPosts = (userId, page = 0, size = 10) =>
   postService.getPosts({ userId, page, size, sort: 'createdAt,desc' });
 
 export const createPost = (userId, postData) => postService.createPostForUser(userId, postData);
+
+
 export const updatePost = (postId, postData) => postService.updatePost(postId, postData);
 export const deletePost = (postId) => postService.deletePost(postId);
 

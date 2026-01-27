@@ -5,7 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 export default function Post({ post, isOwnPost, onUpdate, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(post.content);
+  const [editedContent, setEditedContent] = useState(post.text);
   const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useAuth();
 
@@ -44,12 +44,12 @@ export default function Post({ post, isOwnPost, onUpdate, onDelete }) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-            {post.author?.username?.charAt(0).toUpperCase() || <FaUser />}
+            {post?.user?.username?.charAt(0).toUpperCase() || <FaUser />}
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <h3 className="font-semibold text-gray-900">
-                {post.author?.username || 'Unknown User'}
+                {post.user?.username || 'Unknown User'}
               </h3>
               {isOwnPost && (
                 <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
@@ -118,7 +118,7 @@ export default function Post({ post, isOwnPost, onUpdate, onDelete }) {
         </div>
       ) : (
         <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-          {post.content}
+          {post.text}
         </p>
       )}
 
