@@ -1,8 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService, getUsers, userService } from '../services/api';
-import { jwtDecode } from 'jwt-decode';
-
-
+import { authService, getUsers } from '../services/api';
 
 const AuthContext = createContext(undefined);
 
@@ -28,7 +25,6 @@ export default function AuthProvider({ children }) {
         try {
           setUser(JSON.parse(storedUser));
         } catch (error) {
-          console.error('Error parsing stored user:', error);
           clearAuthData();
         }
       }
@@ -61,7 +57,6 @@ export default function AuthProvider({ children }) {
 
     return { success: false, error: 'Registration failed' };
   } catch (error) {
-    console.error('Registration error:', error);
     return { success: false, error: error.message || 'Registration failed' };
   }
 };
@@ -110,9 +105,6 @@ const login = async (username, password) => {
     return { success: false, error: error.message || 'Login failed' };
   }
 };
-
-
-
 
   const logout = () => {
     clearAuthData();
