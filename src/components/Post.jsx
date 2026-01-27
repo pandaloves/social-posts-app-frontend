@@ -44,7 +44,7 @@ export default function Post({ post, isOwnPost, onUpdate, onDelete }) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-            {post.user?.username?.charAt(0).toUpperCase() || <FaUser />}
+            {post?.user?.username?.charAt(0).toUpperCase() || <FaUser />}
           </div>
           <div>
             <div className="flex items-center space-x-2">
