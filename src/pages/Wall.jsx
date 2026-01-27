@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePosts } from '../context/PostContext';
 import Post from '../components/Post';
 import PostForm from '../components/PostForm';
 import UserInfo from '../components/UserInfo';
@@ -15,9 +16,9 @@ import {
 export default function Wall({ isOwnWall = false }) {
   const { userId } = useParams();
   const { user: loggedInUser } = useAuth();
+  const { posts, setAllPosts, addPost, updatePostById, deletePostById } = usePosts();
 
   const [wallUser, setWallUser] = useState(null);
-  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -29,68 +30,70 @@ export default function Wall({ isOwnWall = false }) {
   }, [currentWallUserId]);
 
   const loadWallData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const userData = await fetchUserProfile(currentWallUserId);
-      setWallUser(userData);
+    // Fetch the auth user's profile
+    const userData = await fetchUserProfile(loggedInUser?.id);
+    setWallUser(userData);
 
-      const postsData = await fetchUserPosts(currentWallUserId);
-      const sortedPosts = postsData.posts?.sort((a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-      ) || [];
-      setPosts(sortedPosts);
-    } catch (err) {
-      setError('Failed to load wall data. Please try again.');
-      console.error('Error loading wall:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Fetch only posts of the auth user
+    const postsData = await fetchUserPosts(loggedInUser?.id); 
+    const normalizedPosts = (postsData.content || []).map(p => ({
+      ...p,
+      user: p.user,
+    }));
 
-  const handleCreatePost = async (content) => {
-    try {
-      const newPost = await createPost({ content });
-      setPosts([newPost, ...posts]);
-    } catch (err) {
-      console.error('Error creating post:', err);
-      throw err;
-    }
-  };
+    // Sort newest first
+    const sortedPosts = normalizedPosts.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
 
-  const handleUpdatePost = async (postId, content) => {
-    try {
-      await updatePost(postId, { content });
-      setPosts(posts.map(post =>
-        post.id === postId ? { ...post, content, updatedAt: new Date().toISOString() } : post
-      ));
-    } catch (err) {
-      console.error('Error updating post:', err);
-      throw err;
-    }
-  };
+    setAllPosts(sortedPosts); 
+  } catch (err) {
+    console.error('Error loading wall:', err);
+    setError('Failed to load wall data. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleDeletePost = async (postId) => {
-    try {
-      await deletePost(postId);
-      setPosts(posts.filter(post => post.id !== postId));
-    } catch (err) {
-      console.error('Error deleting post:', err);
-      throw err;
-    }
-  };
+
+const handleCreatePost = async (postData) => {
+  // Pass loggedInUser.id in the URL (handled by API service)
+  const newPost = await createPost(loggedInUser.id, postData);
+
+  addPost({
+    ...newPost,
+    user: {
+      id: loggedInUser.id,
+      username: loggedInUser.username,
+      email: loggedInUser.email,
+    },
+  });
+};
+
+
+
+
+ const handleUpdatePost = async (postId, text) => {
+  await updatePost(postId, { text });
+  updatePostById(postId, { text, updatedAt: new Date().toISOString() });
+};
+
+const handleDeletePost = async (postId) => {
+  await deletePost(postId);
+  deletePostById(postId);
+};
+
 
   if (loading) return <div className="text-center py-12">Loading wall...</div>;
   if (error) return <div className="text-center py-12 text-red-500">{error}</div>;
 
   return (
     <div className="max-w-6xl mx-auto">
-      {wallUser && (
-        <div className="mb-8">
-          <UserInfo user={wallUser} isOwnProfile={isViewingOwnWall} postCount={posts.length} />
-        </div>
-      )}
+      {wallUser && <UserInfo user={wallUser} isOwnProfile={isViewingOwnWall} postCount={posts.length} />}
 
       {isViewingOwnWall && (
         <div className="mb-8">
@@ -119,7 +122,7 @@ export default function Wall({ isOwnWall = false }) {
                 <Post
                   key={post.id}
                   post={post}
-                  isOwnPost={post.author?.id === loggedInUser?.id}
+                  isOwnPost={post.user?.id === loggedInUser?.id}
                   onUpdate={handleUpdatePost}
                   onDelete={handleDeletePost}
                 />
